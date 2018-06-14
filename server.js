@@ -27,7 +27,22 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // Connect to the Mongo DB
-mongoose.connect("mongodb://localhost/");
+mongoose.Promise = Promise;
+var databaseUri = "mongodb://localhost/mongonews";
+  if(process.env.MONGODB_URI) {
+    mongoose.connect(process.env.MONGODB_URI);
+  } else {
+    mongoose.connect(databaseUri);
+  }
+
+var mongoDb = mongoose.connection
+  mongoDb.on('error', function(err){
+    console.log('Mongoose error: ', err)
+  });
+
+  mongoDb.once('open', function(){
+    console.log('Mongoose connection successful')
+  })
 
 // Routes
 
@@ -42,7 +57,7 @@ app.get("/scrape", function(req, res) {
     $("article h2").each(function(i, element) {
       // Save an empty result object
       var result = {};
-
+      console.log(result);
       // Add the text and href of every link, and save them as properties of the result object
       result.title = $(this)
         .children("a")
@@ -50,12 +65,14 @@ app.get("/scrape", function(req, res) {
       result.link = $(this)
         .children("a")
         .attr("href");
+      
 
       // Create a new Article using the `result` object built from scraping
       db.Article.create(result)
         .then(function(dbArticle) {
           // View the added result in the console
           console.log(dbArticle);
+          console.log(i);
         })
         .catch(function(err) {
           // If an error occurred, send it to the client
@@ -65,6 +82,7 @@ app.get("/scrape", function(req, res) {
 
     // If we were able to successfully scrape and save an Article, send a message to the client
     res.send("Scrape Complete");
+    res.json(dbArticle);
   });
 });
 
